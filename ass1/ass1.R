@@ -4,6 +4,11 @@ library(boot)
 CEdata = read.csv(file="costefficacydata.csv", header=TRUE, sep=",")
 CEdata$event = as.factor(CEdata$event)
 
+d = CEdata
+
+CE(CEdata)
+
+sum(d$event[d$trt == 2] == 1)
 
 trtOne = filter(CEdata, CEdata$trt == 1)
 trtTwo = filter(CEdata, CEdata$trt == 2)
@@ -13,9 +18,11 @@ eventProp <- function(d){
   return(alive/dim(d)[1])
 }
 
-CE <- function(data, i){
+CE <- function(data, i = 0){
   
-  data = data[i,]
+  if (i!=0) {
+    data = data[i,]
+  }
   
   trtOne = filter(data, data$trt == 1)
   trtTwo = filter(data, data$trt == 2)
@@ -38,10 +45,12 @@ res$t0
 sd = sd(res$t)
 se = sd/sqrt(10000)
 
-res$t0 + 1.96*se
-res$t0 - 1.96*se
+mean(res$t) + 1.96*se
+mean(res$t) - 1.96*se
 
-hist(log(res$t))
+quantile(res$t, probs=c(0.025, 0.975))
+
+hist(log(res$t), main = "Distribution of bootstrapped log(CE Ratio)")
 hist(res$t, breaks = 100)
 
 dev.new()
@@ -66,9 +75,10 @@ for (j in 1:10000) {
   ratio[j] = (mean(dd$costs[dd$trt==1]) - mean(dd$costs[dd$trt==2])) / (mean(dd$event[dd$trt==1]) - mean(dd$event[dd$trt==2]))
 }
 
-hist(log(ratio))
+hist(log(ratio), main = "Distribution of simulated log(CE Ratio)")
 mean(ratio)
 
+quantile(ratio, probs=c(0.025, 0.975))
 
 
 
