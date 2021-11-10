@@ -32,6 +32,9 @@ CE <- function(data, i){
 res <- boot(CEdata, CE, R=10000, stype = "i")
 boot.ci(res, type = "all")
 
+mean(res$t)
+res$t0
+
 sd = sd(res$t)
 se = sd/sqrt(10000)
 
@@ -40,6 +43,37 @@ res$t0 - 1.96*se
 
 hist(log(res$t))
 hist(res$t, breaks = 100)
+
+dev.new()
+
+
+n1 = dim(trtOne)[1]
+n2 = dim(trtTwo)[1]
+m1 = mean(trtOne$costs) 
+m2 = mean(trtTwo$costs)
+p1 = eventProp(trtOne)
+p2 = eventProp(trtTwo)
+s1 = sd(trtOne$costs)
+s2 = sd(trtTwo$costs)
+
+ratio = c()
+for (j in 1:10000) {
+  dd = data.frame(rbind(
+    cbind(rbinom(n1, 1, p1), rnorm(n1, m1, s1), rep(1, n1)),
+    cbind(rbinom(n2, 1, p2), rnorm(n2, m2, s2), rep(2, n2))
+  ))
+  names(dd) = c("event", "costs", "trt")
+  ratio[j] = (mean(dd$costs[dd$trt==1]) - mean(dd$costs[dd$trt==2])) / (mean(dd$event[dd$trt==1]) - mean(dd$event[dd$trt==2]))
+}
+
+hist(log(ratio))
+mean(ratio)
+
+
+
+
+
+
 
 
 
