@@ -73,12 +73,6 @@ bestShape = function(param, y = gstatus){
   plot(AICs)
 }
 
-params = c(acclft, gsurv, aantalre, creat, predias, prac)
-
-mod = lm(gsurv ~ poly(creat, 6) + poly(acclft, 5) + poly(prac, 5) + log(predias) + gstatus + aantalre + uprotein, data = df, na.action = na.exclude)
-plot(creat, mod$residuals)
-
-
 ############################# Cumulative Hazard
 survival = c()
 for (y in 1:150) {
@@ -140,7 +134,7 @@ plot(1:8, event)
 
 ####################### Creat
 
-p2 <- df %>% ggplot(aes(x=creat, gsurv, color=gstatus)) + geom_point() + theme(legend.position="left")
+p2 <- df %>% ggplot(aes(x=creat, gsurv, color=gstatus, groupFill = F)) + geom_point() + theme(legend.position="left")
 ggMarginal(p2, type="histogram", groupColour = TRUE, groupFill = TRUE)
 
 #################### Acclft
@@ -205,17 +199,37 @@ model = survfit( Surv(df$gsurv,df$gstatus) ~ df$uprotein )
 summary(model)
 model
 
-plot(model, conf.int = F, xlab = "Time (Months)", ylab = "%Alive", main = "KM-Model", las = 1,
+plot(model, conf.int = F, xlab = "Time (Months)", ylab = "%Dead", main = "KM-Model", las = 1,
      col = c("green", "blue", "red"), lwd = 2)
 legend(145,0.2, legend = c("uprotein 0", "uprotein 1", "uprotein 2"), lty = 1, lwd = 2,
        col = c("green", "blue", "red"), bty = "", cex = 0.7 )
+
+model = survfit( Surv(df$gsurv,df$gstatus) ~ df$cregsh )
+plot(model, conf.int = F, xlab = "Time (Months)", ylab = "%Dead", main = "KM-Model", las = 1,
+     col = c("green", "blue", "red", "yellow", "purple", "brown", "black", "pink"), lwd = 2)
+legend(145,0.2, legend = c("1", "2", "3", "4", "5", "6", "7", "8"), lty = 1, lwd = 2,
+       col = c("green", "blue", "red", "yellow", "purple", "brown", "black", "pink"), bty = "", cex = 0.7 )
 
 # Do the LOG-RANK Test 
 # H0 : survival in three groups is the same
 # Ha : survival in three groups is not the same
 
+df$gstatus = as.numeric(df$gstatus)
+
 df$gstatus <- as.factor(df$gstatus)
 survdiff( Surv(df$gsurv,df$gstatus) ~ df$uprotein)
+
+
+
+params = c(acclft, gsurv, aantalre, creat, predias, prac)
+df$gstatus = as.factor(as.numeric(df$gstatus) + 1)
+
+mod = lm(gstatus ~ poly(creat, 3) + poly(acclft, 5) + poly(prac, 5) + log(predias) + aantalre + uprotein, data = df, na.action = na.exclude)
+mod$coefficients
+preds = predict(mod, type = "response")
+
+
+plot(df$creat, mod$residuals)
 
 
 
