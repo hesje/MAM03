@@ -149,6 +149,112 @@ plot(1:8, event)
 
 
 
+#########################
+
+
+####################### Creat
+
+
+p2 <- df %>%
+  ggplot(aes(x=creat, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p2, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+
+#################### Acclft
+
+
+p3 <- df %>%
+  ggplot(aes(x=acclft, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p3, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+
+####################   cregsh
+
+
+p4 <- df %>%
+  ggplot(aes(x=cregsh, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p4, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+#################   Prac
+
+
+p5 <- df %>%
+  ggplot(aes(x=prac, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p5, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+################   predias
+
+
+p6 <- df %>%
+  ggplot(aes(x=predias, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p6, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+#################   uprotein
+
+
+p7 <- df %>%
+  ggplot(aes(x=uprotein, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p7, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+
+#################   dgf
+
+
+p8 <- df %>%
+  ggplot(aes(x=dgf, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p8, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+##################  
+
+
+p9 <- df %>%
+  ggplot(aes(x=aantalre, gsurv, color=gstatus))+
+  geom_point() +
+  theme(legend.position="left")
+ggMarginal(p9, type="histogram", groupColour = TRUE, groupFill = TRUE)
+
+
+################ survival analysis
+
+
+model = survfit( Surv(df$gsurv,df$gstatus) ~ uprotein )
+
+summary(model)
+
+model
+
+plot(model, conf.int = F, xlab = "Time (Months)", ylab = "%Alive", main = "KM-Model", las = 1,
+     col = c("green", "blue", "red"), lwd = 2)
+
+legend(145,0.2, legend = c("uprotein 0", "uprotein 1", "uprotein 2"), lty = 1, lwd = 2,
+       col = c("green", "blue", "red"), bty = "", cex = 0.7 )
+
+# Do the LOG-RANK Test 
+# H0 : survival in three groups is the same
+# Ha : survival in three groups is not the same
+
+df$gstatus <- as.factor(df$gstatus)
+survdiff( Surv(df$gsurv,df$gstatus) ~ uprotein)
+
+
+
+
+
+
 
 
 
