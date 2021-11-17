@@ -2,6 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(nlme)
 library(numbers)
+library(table1)
 
 ###################### Getting the data
 
@@ -16,7 +17,10 @@ d$sexe = recode_factor(d$sexe, `1` = "male", `0` = "female")
 plot(d$age, d$diameter)
 
 ####################### Q1 #################
+dunique = unique(select(d, c("patnr", "sexe")), incomparables = c("age"))
+dunique$age = d$age[d$metingnr == 1]
 
+table1(~ age + diameter | sexe, data=d)
 
 ####################### Q2 ################# (qq plots van residuals, average = 0)
 
@@ -53,7 +57,7 @@ newdata$seLower = newdata$diameter - 1.96 * newdata$SE
 newdata$seUpper = newdata$diameter + 1.96 * newdata$SE
 
 p = ggplot()
-p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seLower, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seUpper, group = newdata$sexe))
+#p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seLower, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seUpper, group = newdata$sexe))
 p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "male"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)+ geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "female"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)
 
 ####################### Q4 #################
@@ -70,8 +74,8 @@ randomEff = mod$coefficients$random$patnr
 randomEff = cbind(randomEff, rep(0, 159))
 
 designmatrix = model.matrix(~ age + sexe, exd, contrasts.arg = list(sexe = contr.treatment(c("male", "female"), base = 1)))
-# predvar = diag(designmatrix %*% vcov(mod) %*% t(designmatrix))
-# newdata$SE = sqrt(predvar)
+predvar = diag(designmatrix %*% vcov(mod) %*% t(designmatrix))
+SE = sqrt(predvar)
 
 coeff = randomEff+rep(mod$coefficients$fixed,each=nrow(randomEff))
 
@@ -85,7 +89,9 @@ dex = rbind(dex, exd)
 
 plotPatient = function(ptnr) {
   measurements = dplyr::filter(dex, dex$patnr == ptnr)
-  plot(measurements$age, measurements$diameter)
+  m = measurements[order(-measurements$age)[1],]
+  #ggplot() + geom_point(aes(x=measurements$age, y=measurements$diameter)) + geom_errorbar(aes(x=m$age, ymin=m$diameter - (1.96 * SE[ptnr]), ymax=m$diameter + (1.96 * SE[ptnr]), width=.1))
+  ggplot() + geom_point(aes(x=measurements$age, y=measurements$diameter)) + geom_abline(intercept = coeff[ptnr, 1] + (m$sexe == "female") * coeff[ptnr, 3], slope = coeff[ptnr, 2]) + geom_errorbar(aes(x=m$age, ymin=m$diameter - (1.96 * SE[ptnr]), ymax=m$diameter + (1.96 * SE[ptnr]), width=.1))
 }
 
 
