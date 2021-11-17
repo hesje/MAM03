@@ -7,71 +7,89 @@ library(numbers)
 
 d = read.csv("marfan.csv")
 
-dm = dplyr::filter(d, d$sexe == 0)
-df = dplyr::filter(d, d$sexe == 1)
+dm = dplyr::filter(d, d$sexe == 1)
+df = dplyr::filter(d, d$sexe == 0)
 
-d$sexe = as.factor(d$sexe)
+d$sexe = recode_factor(d$sexe, `1` = "male", `0` = "female")
 
-######################## Some random statistics shit and copy-paste from slides.
-dia = c()
-for (i in 1:22) {
-  dia[i] = mean(dplyr::filter(d, metingnr == i)$diameter)
-}
-plot(1:22, dia)
+######################## 
+plot(d$age, d$diameter)
 
-plot(d$metingnr, d$diameter)
+####################### Q1 #################
 
-p = ggplot()
-p + geom_boxplot(aes(x = dm$metingnr, y = dm$diameter, group = dm$metingnr))
 
-mod = lme(diameter ~ age, random=(~1 + age|patnr), data=d, method = "REML")
+####################### Q2 ################# (qq plots van residuals, average = 0)
+
+mod1 = lme(diameter ~ age + sexe, random=(~1|patnr), data=d, method = "ML")
+mod2 = lme(diameter ~ age + sexe, random=(~0 + age|patnr), data=d, method = "ML")
+mod3 = lme(diameter ~ age + sexe, random=(~1 + age|patnr), data=d, method = "ML")
+anova(mod1, mod2, mod3) # kan niet voor REML --> method = "ML" (alleen voor anova)
+
+mod = lme(diameter ~ age + sexe, random=(~1 + age|patnr), data=d, method = "REML")
 summary(mod)
 
 par(mfrow = c(2,2))
-plot(d$age, resid(mod))
+plot(d$age, resid(mod), main = "Residuals of Model Fitting", xlab = "Age [years]", ylab = "Residual")
 abline(h=0, lty=2)
 
-lines(unique(d$age), tapply(resid(mod), d$age, mean), col=2, lwd=3)
-
-qqnorm(resid(mod))
+qqnorm(resid(mod), main = "Q-Q Plot of the Residuals of the Coefficients")
 qqline(resid(mod))
 
-qqnorm(mod$coefficients$random$patnr)
+hist(mod$coefficients$random$patnr, main = "Distribution of the Random Effect per Patient", xlab = "Random Effect")
+
+qqnorm(mod$coefficients$random$patnr, main = "Q-Q Plot of the Residuals of the Random Effects")
 qqline(mod$coefficients$random$patnr)
 
-mod1 = lme(diameter ~ age + sexe, random=(~1|patnr), data=d, method = "REML")
-mod2 = lme(diameter ~ age + sexe, random=(~0 + age|patnr), data=d, method = "REML")
-mod3 = lme(diameter ~ age + sexe + (age * sexe), random=(~1 + age|patnr), data=d, method = "REML")
+####################### Q3 #################
+sexe = c(rep('male', 21), rep('female', 21))
 
-anova(mod1, mod2, mod3)
-
-mod4 = lme(diameter ~ age, random=(~1 + age|patnr), data=d, method = "REML")
-newdata <- data.frame(age = 20:40, patnr = 1:21)
-designmatix <- model.matrix(~age, newdata)
-predvar <- diag(designmatix %*% vcov(mod4) %*% t(designmatix))
-newdata$SE <- sqrt(predvar)
-
-ggplot() + geom_line(aes(x = x, y = ym, colour = "red")) + geom_line(aes(x = x, y = yf, colour = "blue"))
-
-####################### Q2 of assignment I think? #################
-mod5 = lme(diameter ~ age + sexe + (age * sexe), random=(~1 + age|patnr), data=d, method = "REML")
-
-####################### Q3 of assignment I think? #################
-newdata <- data.frame(age = seq(20, 40, 0.5), patnr = 0:40, sexe = mod(0:40, 2))
-designmatix <- model.matrix(~ age + sexe + (age * sexe), newdata)
-predvar <- diag(designmatix %*% vcov(mod5) %*% t(designmatix))
-newdata$SE <- sqrt(predvar)
-newdata$diameter = designmatix %*% mod5$coefficients$fixed
-
-
-newdata$sexe = recode_factor(newdata$sexe, `1` = "male", `0` = "female")
+newdata = data.frame(age = rep(seq(20, 40, 1), 2), patnr = 0:41, sexe = sexe)
+designmatrix = model.matrix(~ age + sexe, newdata, contrasts.arg = list(sexe = contr.treatment(c("male", "female"), base = 2)))
+predvar = diag(designmatrix %*% vcov(mod) %*% t(designmatrix))
+newdata$SE = sqrt(predvar)
+newdata$diameter = designmatrix %*% mod$coefficients$fixed
 
 newdata$seLower = newdata$diameter - 1.96 * newdata$SE
 newdata$seUpper = newdata$diameter + 1.96 * newdata$SE
 
 p = ggplot()
-p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = newdata, aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2, group = newdata$sexe)
-############################
+p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seLower, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seUpper, group = newdata$sexe))
+p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "male"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)+ geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "female"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)
+
+####################### Q4 #################
+dex = select(d, c("patnr", "age", "sexe", "diameter"))
+exd = data.frame()
+
+for (ptnr in unique(dex$patnr)) {
+  measurements = dplyr::filter(dex, dex$patnr == ptnr)
+  meas = measurements[order(-measurements$age)[1],]
+  exd = rbind(exd, data.frame(patnr = ptnr, age = meas$age + 1, sexe = meas$sexe, diameter = 0))
+}
+
+randomEff = mod$coefficients$random$patnr
+randomEff = cbind(randomEff, rep(0, 159))
+
+designmatrix = model.matrix(~ age + sexe, exd, contrasts.arg = list(sexe = contr.treatment(c("male", "female"), base = 1)))
+# predvar = diag(designmatrix %*% vcov(mod) %*% t(designmatrix))
+# newdata$SE = sqrt(predvar)
+
+coeff = randomEff+rep(mod$coefficients$fixed,each=nrow(randomEff))
+
+dia = c()
+for (i in 1:159) {
+  dia[i] = designmatrix[i,] %*% coeff[i,]
+}
+exd$diameter = dia
+
+dex = rbind(dex, exd)
+
+plotPatient = function(ptnr) {
+  measurements = dplyr::filter(dex, dex$patnr == ptnr)
+  plot(measurements$age, measurements$diameter)
+}
+
+
+
 
 
 
