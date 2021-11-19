@@ -1,0 +1,4 @@
+"","call","Model","df","AIC","BIC","logLik","Test","L.Ratio","p-value"
+"mod1","lme.formula(fixed = diameter ~ age + sexe, data = d, random = (~1 |     patnr), method = ""ML"")",1,5,4988.3064646983,5013.02207681239,-2489.15323234915,"",NA,NA
+"mod2","lme.formula(fixed = diameter ~ age + sexe, data = d, random = (~0 +     age | patnr), method = ""ML"")",2,5,5003.88629763368,5028.60190974778,-2496.94314881684,"",NA,NA
+"mod3","lme.formula(fixed = diameter ~ age + sexe, data = d, random = (~1 +     age | patnr), method = ""ML"")",3,7,4881.41013837004,4916.01199532978,-2433.70506918502,"2 vs 3",126.476159263641,3.43598270971703e-28

@@ -17,32 +17,81 @@ d$sexe = recode_factor(d$sexe, `1` = "male", `0` = "female")
 plot(d$age, d$diameter)
 
 ####################### Q1 #################
-dunique = unique(select(d, c("patnr", "sexe")), incomparables = c("age"))
+dunique = unique(select(d, c("patnr", "sexe")))
 dunique$age = d$age[d$metingnr == 1]
 
-table1(~ age + diameter | sexe, data=d)
+label(dunique$age) = "Age at first measurement [years]"
+dunique$sexe = factor(dunique$sexe, levels=c("male","female"), labels=c("Male", "Female"))
+numMeas = c()
+ageL = c()
+diffDia = c()
+for (i in 1:159) {
+  dat = dplyr::filter(d, d$patnr == i)
+  numMeas[i] = dim(dat)[1]
+  ageL[i] = dat$age[order(-dat$age)[1]]
+  diffDia[i] = dat$diameter[order(-dat$metingnr)[1]] - dat$diameter[order(dat$metingnr)[1]]
+}
+dunique$numMeas = numMeas
+dunique$ageLast = ageL
+dunique$diffDiameter = diffDia
+label(dunique$ageLast) = "Age at last measurement [years]"
+label(dunique$numMeas) = "Number of aorta diameter measurements"
+label(dunique$diffDiameter) = "Δ Ø aorta between first and last measurement [mm]"
+
+rndr <- function(x, name, ...) {
+  if (!is.numeric(x)) return(render.categorical.default(x))
+  what <- switch(name,
+                 age = "Median [Min, Max]",
+                 ageLast = "Median [Min, Max]",
+                 numMeas  = "Median [Min, Max]",
+                 diffDiameter = "Median [Min, Max]",
+                 diameter = "Median [Min, Max]")
+  parse.abbrev.render.code(c("", what))(x)
+}
+
+table1(~ age + ageLast + numMeas + diffDiameter | sexe, data=dunique, render = rndr)
+
+dd = d
+dd$age = floor(dd$age/10)*10
+dd$ageF = factor(dd$age, levels=c(10, 20, 30, 40, 50, 60, 70), labels=c("10-19", "20-29", "30-39", "40-49", "50-79", "50-79", "50-79"))
+
+label(dd$ageF) = "Age at measurement [years]"
+label(dd$diameter) = "Aorta Ø [mm]"
+strata = c(list(Total = dd), split(dd, dd$ageF))
+labels = list(variables = list(sexe="Sexe", diameter="Aorta Ø [mm]"), groups = list("", "Age at measurement [years]"))
+table1(strata, labels, data=dd, render = rndr, groupspan=c(1, 7))
 
 ####################### Q2 ################# (qq plots van residuals, average = 0)
 
 mod1 = lme(diameter ~ age + sexe, random=(~1|patnr), data=d, method = "ML")
 mod2 = lme(diameter ~ age + sexe, random=(~0 + age|patnr), data=d, method = "ML")
 mod3 = lme(diameter ~ age + sexe, random=(~1 + age|patnr), data=d, method = "ML")
-anova(mod1, mod2, mod3) # kan niet voor REML --> method = "ML" (alleen voor anova)
+a = anova(mod1, mod2, mod3) # kan niet voor REML --> method = "ML" (alleen voor anova)
+a
+write.csv(a, "anova.csv")
 
 mod = lme(diameter ~ age + sexe, random=(~1 + age|patnr), data=d, method = "REML")
 summary(mod)
 
-par(mfrow = c(2,2))
+par(mfrow = c(3,2))
+
+# scatter of residuals
 plot(d$age, resid(mod), main = "Residuals of Model Fitting", xlab = "Age [years]", ylab = "Residual")
 abline(h=0, lty=2)
 
+# QQ of fixed coeff
 qqnorm(resid(mod), main = "Q-Q Plot of the Residuals of the Coefficients")
 qqline(resid(mod))
 
-hist(mod$coefficients$random$patnr, main = "Distribution of the Random Effect per Patient", xlab = "Random Effect")
+# hist + QQ of random intercepts
+hist(mod$coefficients$random$patnr[,1], main = "Distribution of the Random Effects Intercept", xlab = "Random Effect", breaks = 12)
+qqnorm(mod$coefficients$random$patnr[,1], main = "Q-Q Plot of Random Effects Intercept Coefficients")
+qqline(mod$coefficients$random$patnr[,1])
 
-qqnorm(mod$coefficients$random$patnr, main = "Q-Q Plot of the Residuals of the Random Effects")
-qqline(mod$coefficients$random$patnr)
+# hist + QQ of random slopes
+hist(mod$coefficients$random$patnr[,2], main = "Distribution of the Random Effects Slope", xlab = "Random Effect", breaks = 12)
+qqnorm(mod$coefficients$random$patnr[,2], main = "Q-Q Plot of the Random Effects Slope Coefficients")
+qqline(mod$coefficients$random$patnr[,2])
 
 ####################### Q3 #################
 sexe = c(rep('male', 21), rep('female', 21))
@@ -56,9 +105,9 @@ newdata$diameter = designmatrix %*% mod$coefficients$fixed
 newdata$seLower = newdata$diameter - 1.96 * newdata$SE
 newdata$seUpper = newdata$diameter + 1.96 * newdata$SE
 
-p = ggplot()
 #p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seLower, group = newdata$sexe)) + geom_line(aes(x = newdata$age, y = newdata$seUpper, group = newdata$sexe))
-p + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "male"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)+ geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "female"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)
+p = ggplot() + geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "male"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)+ geom_line(aes(x = newdata$age, y = newdata$diameter, colour = newdata$sexe, group = newdata$sexe)) + geom_ribbon(data = dplyr::filter(newdata, newdata$sexe == "female"), aes(x = age, ymin = seLower, ymax = seUpper), alpha = 0.2)
+p + labs(colour = "Sexe", x = "Age [years]", y = "Aorta Ø [mm]", title = "Aorta diameter prediction for ages 20-40")
 
 ####################### Q4 #################
 dex = select(d, c("patnr", "age", "sexe", "diameter"))
