@@ -3,7 +3,6 @@ library(ggplot2)
 library(nlme)
 library(numbers)
 library(table1)
-library(lme4)
 
 ###################### Getting the data
 
@@ -120,18 +119,37 @@ for (ptnr in unique(dex$patnr)) {
   exd = rbind(exd, data.frame(patnr = ptnr, age = meas$age + 1, sexe = meas$sexe, diameter = 0))
 }
 
-model = lmer(diameter~ age + sexe + (1+age|patnr), data=d, REML = TRUE)
-b <- bootMer(model, nsim=100, use.u = TRUE, FUN = function(x) predict(x, newdata=exd))
-ci_prediction <- apply(b$t, 2, function(x) quantile(x,c(0.025, 0.5, 0.975)))
+randomEff = mod$coefficients$random$patnr
+randomEff = cbind(randomEff, rep(0, 159))
 
-exd$diameter = ci_prediction[2,]
+designmatrix = model.matrix(~ age + sexe, exd, contrasts.arg = list(sexe = contr.treatment(c("male", "female"), base = 1)))
+predvar = diag(designmatrix %*% vcov(mod) %*% t(designmatrix))
+SE = sqrt(predvar)
+
+coeff = randomEff+rep(mod$coefficients$fixed,each=nrow(randomEff))
+
+dia = c()
+for (i in 1:159) {
+  dia[i] = designmatrix[i,] %*% coeff[i,]
+}
+exd$diameter = dia
+
 dex = rbind(dex, exd)
 
 plotPatient = function(ptnr) {
   measurements = dplyr::filter(dex, dex$patnr == ptnr)
   m = measurements[order(-measurements$age)[1],]
-  ggplot() + geom_point(aes(x=measurements$age, y=measurements$diameter))  + geom_errorbar(aes(x=m$age, ymin=ci_prediction[1,ptnr], ymax=ci_prediction[3,ptnr], width=.1))
+  #ggplot() + geom_point(aes(x=measurements$age, y=measurements$diameter)) + geom_errorbar(aes(x=m$age, ymin=m$diameter - (1.96 * SE[ptnr]), ymax=m$diameter + (1.96 * SE[ptnr]), width=.1))
+  ggplot() + geom_point(aes(x=measurements$age, y=measurements$diameter)) + geom_abline(intercept = coeff[ptnr, 1] + (m$sexe == "female") * coeff[ptnr, 3], slope = coeff[ptnr, 2]) + geom_errorbar(aes(x=m$age, ymin=m$diameter - (1.96 * SE[ptnr]), ymax=m$diameter + (1.96 * SE[ptnr]), width=.1))
 }
+
+
+
+options(mc.cores = parallel::detectCores())
+fm_stan <- stan_lmer(diameter~ age + sexe + (1 + age|patnr), data=d, chains = 4)
+prior_summary(object = fm_stan)
+
+
 
 
 
