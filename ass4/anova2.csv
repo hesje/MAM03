@@ -1,0 +1,4 @@
+,call,Model,df,AIC,BIC,logLik,Test,L.Ratio,p-value
+mod1,"Method used: Maximum liklihood ""ML"", random effects on the baseline = random=~1|ID",1,6,34098.94211,34136.48954,-17043.47106,,NA,NA
+mod2,"Method used: Maximum liklihood ""ML"", random effects on the baseline AND linear to years, random=~1+years|ID",2,8,33795.29443,33845.35767,-16889.64722,1 vs 2,307.6476783,1.57E-67
+mod3,"Method used: Maximum liklihood ""ML"", random effects on the baseline AND linear to transformed years= random=~1+ns(years,df=2)|ID",3,10,33276.07513,33338.65417,-16628.03756,2 vs 3,523.2193076,2.42E-114
